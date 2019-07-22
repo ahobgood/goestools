@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include <util/fs.h>
+
 #include "lib/file_reader.h"
 #include "lib/nanomsg_reader.h"
 
@@ -22,6 +24,8 @@
 #include "lrit_processor.h"
 #include "packet_processor.h"
 
+using namespace util;
+
 int main(int argc, char** argv) {
   // Dealing with time zones is a PITA even if you only care about UTC.
   // Since this is not a library we can get away with the following...
@@ -34,8 +38,11 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
+  // Make sure output directory exists
+  mkdirp(opts.out);
+
   // Handlers share a file writer instance
-  auto fileWriter = std::make_shared<FileWriter>();
+  auto fileWriter = std::make_shared<FileWriter>(opts.out);
   if (opts.force) {
     fileWriter->setForce(true);
   }
@@ -108,7 +115,9 @@ int main(int argc, char** argv) {
       reader = std::make_unique<FileReader>(opts.paths);
     }
 
-    p.run(reader);
+    // Run in verbose mode when stdout is a TTY.
+    bool verbose = isatty(fileno(stdout));
+    p.run(reader, verbose);
   }
 
   if (opts.mode == ProcessMode::LRIT) {

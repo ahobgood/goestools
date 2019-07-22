@@ -1,5 +1,4 @@
 #include <array>
-#include <cassert>
 #include <cstdint>
 #include <cstring>
 #include <iomanip>
@@ -10,15 +9,19 @@
 #include <string>
 #include <vector>
 
+#include <util/error.h>
+#include <util/string.h>
+
 #include "assembler/assembler.h"
 #include "lib/file_reader.h"
 #include "lib/nanomsg_reader.h"
-#include "lib/util.h"
 #include "lib/zip.h"
 
 #include "emwin.h"
 #include "options.h"
 #include "qbt.h"
+
+using namespace util;
 
 template<typename T>
 std::string filename(const T& t);
@@ -27,7 +30,7 @@ template<>
 std::string filename(const qbt::Fragment& f) {
   struct timespec ts;
   auto rv = clock_gettime(CLOCK_REALTIME, &ts);
-  assert(rv >= 0);
+  ASSERT(rv >= 0);
 
   // Use filename pattern similar to the one Dartcom uses
   std::array<char, 128> tsbuf;
@@ -41,7 +44,7 @@ std::string filename(const qbt::Fragment& f) {
     tsbuf.size() - len,
     "_%05d.000",
     f.counter());
-  assert(len < tsbuf.size());
+  ASSERT(len < tsbuf.size());
   return std::string(tsbuf.data(), len);
 }
 

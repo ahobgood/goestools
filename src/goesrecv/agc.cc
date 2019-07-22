@@ -1,9 +1,8 @@
 #include "agc.h"
 
-#include <cassert>
 #include <cmath>
 
-#ifdef __ARM_NEON__
+#ifdef __ARM_NEON
 #include <arm_neon.h>
 #endif
 
@@ -14,7 +13,7 @@ AGC::AGC() {
   gain_ = 1e0f;
 }
 
-#ifdef __ARM_NEON__
+#ifdef __ARM_NEON
 
 void AGC::work(
     size_t nsamples,

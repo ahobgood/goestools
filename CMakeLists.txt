@@ -19,7 +19,7 @@ endmacro()
 if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^arm")
   # Enable NEON
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mfpu=neon")
-  set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -mfpu=neon")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfpu=neon")
 
   # Assume Raspbian if we're cross compiling for ARM
   if(CMAKE_CROSSCOMPILING)
@@ -58,7 +58,7 @@ endif()
 
 add_subdirectory(vendor/libcorrect EXCLUDE_FROM_ALL)
 add_subdirectory(vendor/libaec EXCLUDE_FROM_ALL)
-add_subdirectory(vendor/json11 EXCLUDE_FROM_ALL)
+add_subdirectory(vendor/json EXCLUDE_FROM_ALL)
 
 # Build nanomsg
 option(NN_STATIC_LIB "Build nanomsg as static library." ON)
@@ -83,6 +83,7 @@ include_directories(BEFORE SYSTEM ${PROJECT_SOURCE_DIR}/vendor/libaec/src)
 include_directories(BEFORE SYSTEM ${PROJECT_SOURCE_DIR}/vendor/tinytoml/include)
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
+add_subdirectory(src/util)
 add_subdirectory(src/lib)
 add_subdirectory(src/lrit)
 add_subdirectory(src/dcs)
@@ -131,6 +132,12 @@ if(${BUILD_GOESPROC})
   # Install contrast curve and false color LUT
   install(
     DIRECTORY share/wxstar
+    DESTINATION share/goestools
+    COMPONENT goestools)
+
+  # Install Natural Earth GeoJSON files for map overlays
+  install(
+    DIRECTORY share/ne
     DESTINATION share/goestools
     COMPONENT goestools)
 endif()

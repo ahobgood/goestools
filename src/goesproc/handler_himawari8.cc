@@ -1,11 +1,18 @@
 #include "handler_himawari8.h"
 
-#include <cassert>
+#include <util/error.h>
+#include <util/string.h>
 
-#include "lib/util.h"
+#include "lib/timer.h"
 
 #include "filename.h"
 #include "string.h"
+
+#ifdef HAS_PROJ
+#include "map_drawer.h"
+#endif
+
+using namespace util;
 
 Himawari8ImageHandler::Himawari8ImageHandler(
   const Config::Handler& config,
@@ -42,7 +49,7 @@ void Himawari8ImageHandler::handle(std::shared_ptr<const lrit::File> f) {
 
   // Expect only full disk images
   Region region;
-  assert(nlh.productSubID % 2 == 1);
+  ASSERT(nlh.productSubID % 2 == 1);
   region.nameShort = "FD";
   region.nameLong = "Full Disk";
 
@@ -80,6 +87,9 @@ void Himawari8ImageHandler::handle(std::shared_ptr<const lrit::File> f) {
 
   vector.push_back(f);
   if (vector.size() == sih.maxSegment) {
+    Timer t;
+
+    auto first = vector.front();
     auto image = Image::createFromFiles(vector);
     vector.clear();
 
@@ -90,8 +100,13 @@ void Himawari8ImageHandler::handle(std::shared_ptr<const lrit::File> f) {
     fb.region = region;
     fb.channel = channel;
 
+    auto mat = image->getRawImage();
+    overlayMaps(*f, mat);
     auto path = fb.build(config_.filename, config_.format);
-    fileWriter_->write(path, image->getRawImage());
+    fileWriter_->write(path, mat, &t);
+    if (config_.json) {
+      fileWriter_->writeHeader(*first, path);
+    }
     return;
   }
 }
@@ -103,7 +118,7 @@ std::string Himawari8ImageHandler::getBasename(const lrit::File& f) const {
   // as identification for this segmented image.
   // Example annotation: IMG_DK01VIS_201712162250_003.lrit
   auto pos = findLast(text, '_');
-  assert(pos != std::string::npos);
+  ASSERT(pos != std::string::npos);
   return text.substr(0, pos);
 }
 
@@ -132,4 +147,19 @@ struct timespec Himawari8ImageHandler::getTime(const lrit::File& f) const {
   }
 
   return time;
+}
+
+void Himawari8ImageHandler::overlayMaps(const lrit::File& f, cv::Mat& mat) {
+#ifdef HAS_PROJ
+  if (config_.maps.empty()) {
+    return;
+  }
+
+  auto inh = f.getHeader<lrit::ImageNavigationHeader>();
+  auto lon = inh.getLongitude();
+
+  // TODO: The map drawer should be cached by construction parameters.
+  auto drawer = MapDrawer(&config_, lon, inh);
+  mat = drawer.draw(mat);
+#endif
 }

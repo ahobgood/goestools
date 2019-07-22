@@ -2,12 +2,14 @@
 
 #include <getopt.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 
 #include <algorithm>
 #include <iostream>
 
 #include "lib/dir.h"
+#include "lib/version.h"
 
 namespace {
 
@@ -20,8 +22,13 @@ void usage(int argc, char** argv) {
   fprintf(stderr, "  -m, --mode [packet|lrit]   Process stream of VCDU packets\n");
   fprintf(stderr, "                             or pre-assembled LRIT files\n");
   fprintf(stderr, "      --subscribe ADDR       Address of nanomsg publisher\n");
+  fprintf(stderr, "                             (implies --mode packet)\n");
   fprintf(stderr, "  -f  --force                Overwrite existing output files\n");
-  fprintf(stderr, "      --help                 Show this help\n");
+  fprintf(stderr, "      --out DIR              Output directory\n");
+  fprintf(stderr, "\n");
+  fprintf(stderr, "Other:\n");
+  fprintf(stderr, "      --help     Display this help and exit\n");
+  fprintf(stderr, "      --version  Print version information and exit\n");
   fprintf(stderr, "\n");
   fprintf(stderr, "If mode is set to packet, goesproc reads VCDU packets from the\n");
   fprintf(stderr, "specified path(s). To process real time data you can either setup a pipe\n");
@@ -54,7 +61,9 @@ Options parseOptions(int& argc, char**& argv) {
       {"mode",      required_argument, nullptr, 'm'},
       {"subscribe", required_argument, nullptr, 0x1001},
       {"force",     no_argument,       nullptr, 'f'},
+      {"out",       required_argument, nullptr, 0x1003},
       {"help",      no_argument,       nullptr, 0x1337},
+      {"version",   no_argument,       nullptr, 0x1338},
       {nullptr,     0,                 nullptr, 0},
     };
 
@@ -74,20 +83,34 @@ Options parseOptions(int& argc, char**& argv) {
         auto tmp = std::string(optarg);
         if (tmp == "packet") {
           opts.mode = ProcessMode::PACKET;
-        }
-        if (tmp == "lrit") {
+        } else if (tmp == "lrit") {
           opts.mode = ProcessMode::LRIT;
+        } else {
+          fprintf(stderr, "%s: invalid argument '%s' for '--mode'\n", argv[0], tmp.c_str());
+          fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
+          exit(1);
         }
       }
       break;
     case 0x1001: // --subscribe
       opts.subscribe = std::string(optarg);
+      // Specifying subscription address implies packet processing mode
+      if (opts.mode == ProcessMode::UNDEFINED) {
+        opts.mode = ProcessMode::PACKET;
+      }
       break;
     case 'f':
       opts.force = true;
       break;
+    case 0x1003: // --out
+      opts.out = optarg;
+      break;
     case 0x1337:
       usage(argc, argv);
+      break;
+    case 0x1338:
+      version(argc, argv);
+      exit(0);
       break;
     default:
       std::cerr << "Invalid option" << std::endl;
@@ -102,9 +125,39 @@ Options parseOptions(int& argc, char**& argv) {
     exit(1);
   }
 
+  // Require configuration to be a regular file
+  {
+    struct stat st;
+    const char* error = nullptr;
+    auto rv = stat(opts.config.c_str(), &st);
+    if (rv < 0) {
+      error = strerror(errno);
+    } else {
+      if (!S_ISREG(st.st_mode)) {
+        error = "Not a file";
+      }
+    }
+    if (error != nullptr) {
+      fprintf(stderr,
+              "%s: invalid configuration file '%s': %s\n",
+              argv[0],
+              opts.config.c_str(),
+              error);
+      fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
+      exit(1);
+    }
+  }
+
   // Require process mode to be specified
   if (opts.mode == ProcessMode::UNDEFINED) {
     fprintf(stderr, "%s: no mode specified\n", argv[0]);
+    fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
+    exit(1);
+  }
+
+  // If subscription address is specified we must be in packet processing mode
+  if (!opts.subscribe.empty() && opts.mode != ProcessMode::PACKET) {
+    fprintf(stderr, "%s: use of '--subscribe' implies '--mode packet'\n", argv[0]);
     fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
     exit(1);
   }
