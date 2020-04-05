@@ -1,9 +1,10 @@
 #include "costas.h"
 
-#include <cassert>
 #include <cmath>
 
-#ifdef __ARM_NEON__
+#include <util/error.h>
+
+#ifdef __ARM_NEON
 #include "./neon/neon_mathfun.h"
 #endif
 
@@ -19,7 +20,7 @@ Costas::Costas() {
   maxDeviation_ = M_2PI;
 }
 
-#ifdef __ARM_NEON__
+#ifdef __ARM_NEON
 
 void Costas::work(
     size_t nsamples,
@@ -156,7 +157,7 @@ void Costas::work(
   output->resize(nsamples);
 
   // Assume multiple of 4 number of samples
-  assert((nsamples % 4) == 0);
+  ASSERT((nsamples % 4) == 0);
 
   // Do actual work
   std::complex<float>* fi = input->data();

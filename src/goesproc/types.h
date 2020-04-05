@@ -19,6 +19,12 @@ struct AWIPS {
   std::string qq;
 };
 
+// Image product (e.g. CMIP/Cloud and Moisture Imagery Product)
+struct Product {
+  std::string nameShort;
+  std::string nameLong;
+};
+
 // Image region (e.g. FD/Full Disk or NH/Northern Hemisphere)
 struct Region {
   std::string nameShort;
@@ -31,14 +37,15 @@ struct Channel {
   std::string nameLong;
 };
 
-// Used to key a vector of segments off of its region and channel
-using SegmentKey = std::tuple<std::string, std::string>;
+// Used to key a vector of segments off of its product, region, and channel
+using SegmentKey = std::tuple<std::string, std::string, std::string>;
 
 // Corresponding hash function
 struct SegmentKeyHash : public std::unary_function<SegmentKey, std::size_t> {
   std::size_t operator()(const SegmentKey& k) const {
     return
       std::hash<std::string>()(std::get<0>(k)) ^
-      std::hash<std::string>()(std::get<1>(k));
+      std::hash<std::string>()(std::get<1>(k)) ^
+      std::hash<std::string>()(std::get<2>(k));
   }
 };

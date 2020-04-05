@@ -8,11 +8,15 @@
 #include <string>
 #include <vector>
 
+#include <util/fs.h>
+
 #include "assembler/assembler.h"
 
 #include "lib/file_reader.h"
 #include "lib/nanomsg_reader.h"
 #include "options.h"
+
+using namespace util;
 
 bool filter(const Options& opts, std::unique_ptr<assembler::SessionPDU>& spdu) {
   // Per http://www.noaasis.noaa.gov/LRIT/pdf-files/LRIT_receiver-specs.pdf,
@@ -75,10 +79,20 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  // Make sure output directory exists
+  mkdirp(opts.out);
+
   // Pass packets to packet assembler
   assembler::Assembler assembler;
   std::array<uint8_t, 892> buf;
   while (reader->nextPacket(buf)) {
+    VCDU vcdu(buf);
+
+    // Don't process VCDU if VCID was not specified
+    if (!opts.vcids.empty() && opts.vcids.count(vcdu.getVCID()) == 0) {
+      continue;
+    }
+
     auto spdus = assembler.process(buf);
     for (auto& spdu : spdus) {
 
@@ -98,7 +112,7 @@ int main(int argc, char** argv) {
         std::cout << "Writing: ";
       }
 
-      const auto name = filename(spdu);
+      const auto name = opts.out + "/" + filename(spdu);
       std::cout << name << " ";
 
       if (!opts.dryrun) {

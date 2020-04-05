@@ -2,11 +2,14 @@
 
 #include <regex>
 
-#include "lib/util.h"
+#include <util/string.h>
+
 #include "lib/zip.h"
 
 #include "filename.h"
 #include "string.h"
+
+using namespace util;
 
 EMWINHandler::EMWINHandler(
   const Config::Handler& config,
@@ -48,7 +51,11 @@ void EMWINHandler::handle(std::shared_ptr<const lrit::File> f) {
     fb.filename = zip.fileName();
 
     // Use filename and extension straight from ZIP file
-    fileWriter_->write(fb.build("{filename}"), zip.read());
+    const auto path = fb.build("{filename}");
+    fileWriter_->write(path, zip.read());
+    if (config_.json) {
+      fileWriter_->writeHeader(*f, path);
+    }
     return;
   }
 
@@ -58,7 +65,11 @@ void EMWINHandler::handle(std::shared_ptr<const lrit::File> f) {
     fb.filename = filename;
 
     // Compressed TXT files also use the uppercase TXT extension
-    fileWriter_->write(fb.build("{filename}", "TXT"), f->read());
+    const auto path = fb.build("{filename}", "TXT");
+    fileWriter_->write(path, f->read());
+    if (config_.json) {
+      fileWriter_->writeHeader(*f, path);
+    }
     return;
   }
 }

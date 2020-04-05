@@ -1,11 +1,12 @@
 #pragma once
 
-#include <cassert>
 #include <cstdint>
 #include <ctime>
 #include <map>
 #include <string>
 #include <vector>
+
+#include <util/error.h>
 
 namespace lrit {
 
@@ -13,7 +14,7 @@ using HeaderMap = std::map<int, int>;
 using Buffer = std::vector<uint8_t>;
 
 struct PrimaryHeader {
-  static const int CODE;
+  static constexpr int CODE = 0;
 
   uint8_t headerType;
   uint16_t headerLength;
@@ -23,7 +24,7 @@ struct PrimaryHeader {
 };
 
 struct ImageStructureHeader {
-  static const int CODE;
+  static constexpr int CODE = 1;
 
   uint8_t headerType;
   uint16_t headerLength;
@@ -34,19 +35,22 @@ struct ImageStructureHeader {
 };
 
 struct ImageNavigationHeader {
-  static const int CODE;
+  static constexpr int CODE = 2;
 
   uint8_t headerType;
   uint16_t headerLength;
-  char projectionName[32];
+  std::string projectionName;
   uint32_t columnScaling;
   uint32_t lineScaling;
   uint32_t columnOffset;
   uint32_t lineOffset;
+
+  // Converts projection name into floating point longitude.
+  float getLongitude() const;
 };
 
 struct ImageDataFunctionHeader {
-  static const int CODE;
+  static constexpr int CODE = 3;
 
   uint8_t headerType;
   uint16_t headerLength;
@@ -54,7 +58,7 @@ struct ImageDataFunctionHeader {
 };
 
 struct AnnotationHeader {
-  static const int CODE;
+  static constexpr int CODE = 4;
 
   uint8_t headerType;
   uint16_t headerLength;
@@ -62,7 +66,7 @@ struct AnnotationHeader {
 };
 
 struct TimeStampHeader {
-  static const int CODE;
+  static constexpr int CODE = 5;
 
   uint8_t headerType;
   uint16_t headerLength;
@@ -76,7 +80,7 @@ struct TimeStampHeader {
 };
 
 struct AncillaryTextHeader {
-  static const int CODE;
+  static constexpr int CODE = 6;
 
   uint8_t headerType;
   uint16_t headerLength;
@@ -84,7 +88,7 @@ struct AncillaryTextHeader {
 };
 
 struct KeyHeader {
-  static const int CODE;
+  static constexpr int CODE = 7;
 
   uint8_t headerType;
   uint16_t headerLength;
@@ -93,7 +97,7 @@ struct KeyHeader {
 // Mission specific header.
 // See: http://www.noaasis.noaa.gov/LRIT/pdf-files/LRIT_receiver-specs.pdf
 struct SegmentIdentificationHeader {
-  static const int CODE;
+  static constexpr int CODE = 128;
 
   uint8_t headerType;
   uint16_t headerLength;
@@ -107,7 +111,7 @@ struct SegmentIdentificationHeader {
 };
 
 struct NOAALRITHeader {
-  static const int CODE;
+  static constexpr int CODE = 129;
 
   uint8_t headerType;
   uint16_t headerLength;
@@ -119,7 +123,7 @@ struct NOAALRITHeader {
 };
 
 struct HeaderStructureRecordHeader {
-  static const int CODE;
+  static constexpr int CODE = 130;
 
   uint8_t headerType;
   uint16_t headerLength;
@@ -127,7 +131,7 @@ struct HeaderStructureRecordHeader {
 };
 
 struct RiceCompressionHeader {
-  static const int CODE;
+  static constexpr int CODE = 131;
 
   uint8_t headerType;
   uint16_t headerLength;
@@ -137,7 +141,7 @@ struct RiceCompressionHeader {
 };
 
 struct DCSFileNameHeader {
-  static const int CODE;
+  static constexpr int CODE = 132;
 
   uint8_t headerType;
   uint16_t headerLength;
@@ -158,7 +162,7 @@ H getHeader(const Buffer& b, int pos);
 template <typename H>
 H getHeader(const Buffer& b, const HeaderMap& m) {
   auto it = m.find(H::CODE);
-  assert(it != m.end());
+  ASSERT(it != m.end());
   return getHeader<H>(b, it->second);
 }
 

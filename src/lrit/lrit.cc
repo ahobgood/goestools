@@ -1,24 +1,39 @@
 #include "lrit.h"
 
 #include <array>
-#include <cassert>
 #include <cstring>
+
+#include <util/error.h>
+#include <util/string.h>
 
 namespace lrit {
 
-const int PrimaryHeader::CODE = 0;
-const int ImageStructureHeader::CODE = 1;
-const int ImageNavigationHeader::CODE = 2;
-const int ImageDataFunctionHeader::CODE = 3;
-const int AnnotationHeader::CODE = 4;
-const int TimeStampHeader::CODE = 5;
-const int AncillaryTextHeader::CODE = 6;
-const int KeyHeader::CODE = 7;
-const int SegmentIdentificationHeader::CODE = 128;
-const int NOAALRITHeader::CODE = 129;
-const int HeaderStructureRecordHeader::CODE = 130;
-const int RiceCompressionHeader::CODE = 131;
-const int DCSFileNameHeader::CODE = 132;
+// The header codes are defined and initialized in lrit.h.
+// They also need to be *declared* because they are odr-used via
+// std::map::find, which takes a reference argument.
+const int PrimaryHeader::CODE;
+const int ImageStructureHeader::CODE;
+const int ImageNavigationHeader::CODE;
+const int ImageDataFunctionHeader::CODE;
+const int AnnotationHeader::CODE;
+const int TimeStampHeader::CODE;
+const int AncillaryTextHeader::CODE;
+const int KeyHeader::CODE;
+const int SegmentIdentificationHeader::CODE;
+const int NOAALRITHeader::CODE;
+const int HeaderStructureRecordHeader::CODE;
+const int RiceCompressionHeader::CODE;
+const int DCSFileNameHeader::CODE;
+
+float ImageNavigationHeader::getLongitude() const {
+  auto name = std::string(projectionName);
+  auto lpos = name.find('(');
+  auto rpos = name.find(')');
+  if (lpos == std::string::npos || rpos == std::string::npos) {
+    return 0.0;
+  }
+  return std::stof(name.substr(lpos + 1, rpos - (lpos + 1)));
+}
 
 // The days field in CCSDS time starts counting on January 1, 1958.
 // Unix time starts counting on January 1, 1970.
@@ -29,7 +44,7 @@ struct timespec TimeStampHeader::getUnix() const {
   uint16_t days = __builtin_bswap16(*reinterpret_cast<const uint16_t*>(&ccsds[1]));
   uint32_t millis = __builtin_bswap32(*reinterpret_cast<const uint32_t*>(&ccsds[3]));
   if (days > 0 || millis > 0) {
-    assert(days >= ccsdsToUnixDaysOffset);
+    ASSERT(days >= ccsdsToUnixDaysOffset);
     ts.tv_sec = ((days - ccsdsToUnixDaysOffset) * 24 * 60 * 60) + (millis / 1000);
     ts.tv_nsec = (millis % 1000) * 1000 * 1000;
   }
@@ -65,9 +80,9 @@ std::map<int, int> getHeaderMap(const Buffer& b) {
   uint32_t pos = 0;
 
   headerType = b[0];
-  assert(headerType == 0);
+  ASSERT(headerType == 0);
   headerLength = (b[1] << 8) | b[2];
-  assert(headerLength == 16);
+  ASSERT(headerLength == 16);
   memcpy(&totalHeaderLength, &b[4], 4);
   totalHeaderLength = __builtin_bswap32(totalHeaderLength);
 
@@ -171,7 +186,16 @@ template<>
 ImageNavigationHeader getHeader(const Buffer& b, int pos) {
   auto r = HeaderReader<ImageNavigationHeader>(b, pos);
   auto h = r.getHeader();
-  r.read(h.projectionName, sizeof(h.projectionName));
+
+  // Read 32 bytes for the projection name
+  char projectionName[32];
+  r.read(projectionName, sizeof(projectionName));
+
+  // Convert to std::string for return value
+  h.projectionName = util::trimRight(std::string(
+      projectionName,
+      std::min(strlen(projectionName), sizeof(projectionName))));
+
   r.read(&h.columnScaling);
   r.read(&h.lineScaling);
   r.read(&h.columnOffset);

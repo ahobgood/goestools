@@ -2,7 +2,10 @@
 
 #include <pthread.h>
 
-#include "lib/util.h"
+#include <util/error.h>
+#include <util/time.h>
+
+using namespace util;
 
 Demodulator::Demodulator(Demodulator::Type t) {
   switch (t) {
@@ -13,7 +16,7 @@ Demodulator::Demodulator(Demodulator::Type t) {
     symbolRate_ = 927000;
     break;
   default:
-    assert(false);
+    ASSERT(false);
   }
 
   // Sample rate depends on source
